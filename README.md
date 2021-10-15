@@ -8,7 +8,7 @@ Set all your environment variables in /api/.env - this is stuff for your local m
 
 Run the backend first with npm start-api , then run the frontend with npm start.
 
-Hopefully it works (?)
+Hopefully it works..
 
 TODO (?) :
 
