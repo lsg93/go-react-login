@@ -37,6 +37,7 @@ func RegisterUser(u User) (bool, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.MinCost)
 	if err != nil {
 		log.Println(err)
+		return false, err
 	}
 
 	// generate uuid which will be used as confirmation code (cc) in email mesage
@@ -49,6 +50,8 @@ func RegisterUser(u User) (bool, error) {
 		fmt.Println(err)
 		return false, err
 	}
+
+	defer stmt.Close()
 
 	r, err := stmt.Exec(u.Firstname, u.Lastname, u.Email, hash, cc)
 
@@ -78,6 +81,9 @@ func RegisterUser(u User) (bool, error) {
 
 	d := gomail.NewDialer(emailHost, emailPort, emailUsername, emailPw)
 
+	// if an error occurs here, the user was still added to the database
+	// but a 400 response will be sent
+	// so you can keep clicking register to add a new user indefinitely
 	if err := d.DialAndSend(msg); err != nil {
 		return false, err
 	}
@@ -91,28 +97,21 @@ func VerifyUser(u User) (string, error) {
 	// simulate delay
 	time.Sleep(3 * time.Second)
 
-	layout := "2006-01-02 15:04:05"
-	var ts string
+	var t time.Time
 	var verified bool
 
 	row := db.QueryRow("SELECT verified, createdOn FROM testUsers WHERE id = ? AND confirmationCode = ?", u.ID, u.ConfirmationCode)
-	err := row.Scan(&verified, &ts)
+	err := row.Scan(&verified, &t)
 
 	if err != nil {
 		fmt.Println(err.Error())
 		return "notFound", nil
 	}
 
-	var now = time.Now().Unix()
+	var now = time.Now()
+	log.Print(now.Sub(t))
 
-	t, _ := time.Parse(layout, ts)
-	co := t.Unix()
-
-	td := now - co
-
-	fmt.Println(td)
-
-	if td < 1800 {
+	if now.Sub(t) < time.Minute*30 {
 
 		if !verified {
 

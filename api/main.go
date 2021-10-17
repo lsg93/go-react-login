@@ -5,7 +5,7 @@ import (
 	envvars "api/utils"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/sessions"
@@ -15,22 +15,27 @@ var store = sessions.NewCookieStore([]byte("secret-key")) // this might need to 
 
 func reg(w http.ResponseWriter, req *http.Request) {
 
-	rd, err := ioutil.ReadAll(req.Body)
+	// rd, err := ioutil.ReadAll(req.Body)
 
-	if err != nil {
-		fmt.Println("error reading request body")
-	}
+	// if err != nil {
+	// fmt.Println("error reading request body")
+	// should return a response here otherwise it will carry on execution
+	// }
 
 	var u models.User
 
-	if err := json.Unmarshal(rd, &u); err != nil {
+	// this is a more efficient way to decode JSON request
+	if err := json.NewDecoder(req.Body).Decode(&u); err != nil {
 		panic("?")
 	}
 
-	_, err = models.RegisterUser(u)
+	// looks like it doesn't check if you agreed to the Ts&Cs
+	_, err := models.RegisterUser(u)
 
 	if err != nil {
+		log.Print(err)
 		w.WriteHeader(http.StatusBadRequest)
+		return // need to return here otherwise it will continue execution and try to write to the response again
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -41,15 +46,7 @@ func verifyReg(w http.ResponseWriter, req *http.Request) {
 
 	var u models.User
 
-	rd, err := ioutil.ReadAll(req.Body)
-
-	fmt.Println(string(rd))
-
-	if err != nil {
-		fmt.Println("error reading request body")
-	}
-
-	if err := json.Unmarshal(rd, &u); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&u); err != nil {
 		panic("?")
 	}
 
@@ -69,13 +66,7 @@ func login(w http.ResponseWriter, req *http.Request) {
 
 	var u models.User
 
-	rd, err := ioutil.ReadAll(req.Body)
-
-	if err != nil {
-		fmt.Println("error reading request body")
-	}
-
-	if err := json.Unmarshal(rd, &u); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&u); err != nil {
 		panic("?")
 	}
 
@@ -131,7 +122,7 @@ func main() {
 	err := models.InitDB()
 
 	if err != nil {
-		fmt.Println("error opening db connection?")
+		log.Fatalf("database error: %v", err)
 	}
 
 	http.HandleFunc("/auth", auth)
